@@ -1,0 +1,43 @@
+[tool.ruff]
+line-length = 120
+exclude = ["__pycache__",
+    ".venv",
+    "env",
+    "venv",
+    "ENV",
+    ".env",
+    ".idea",
+    ".vscode",
+    "*.egg-info",
+    "dist",
+    "build",
+    ".pytest_cache",
+    ".mypy_cache",
+    "htmlcov",
+    "site",
+    "node_modules",
+    "*.log",
+    "*.pot",
+    "*.bak",
+    ".nox",
+    ".tox",
+    ".ruff_cache",
+    "alembic/versions",
+    "alembic/env.py",
+    "docker",]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "RUFF"]
+ignore = [
+  "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["E501", "N", "B008"]
+"alembic/versions/*.py" = ["E501", "N", "B008"]
+"tests/**/*.py" = ["E501"]
+
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = true

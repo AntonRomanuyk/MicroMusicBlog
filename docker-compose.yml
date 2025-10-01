@@ -1,0 +1,53 @@
+version: '4.46'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh start.sh
+    volumes:
+      - .:/app
+    ports:
+      - 8000:8000
+    environment:
+      DATABASE_HOSTNAME: "${DATABASE_HOSTNAME}"
+      DATABASE_PORT: "${DATABASE_PORT}"
+      DATABASE_NAME: "${DATABASE_NAME}"
+      DATABASE_USER: "${DATABASE_USER}"
+      DATABASE_PASSWORD: "${DATABASE_PASSWORD}"
+      SECRET_KEY: "${SECRET_KEY}"
+      ALGORITHM: "${ALGORITHM}"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES}"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - api_network
+
+  db:
+    image: postgres:17.0
+    environment:
+      POSTGRES_DB: "${DATABASE_NAME}"
+      POSTGRES_USER: "${DATABASE_USER}"
+      POSTGRES_PASSWORD: "${DATABASE_PASSWORD}"
+    ports:
+      - "${DATABASE_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+        - api_network
+
+  redis:
+    image: redis:latest
+    volumes:
+      - redis_data:/data
+    networks:
+        - api_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  api_network:
