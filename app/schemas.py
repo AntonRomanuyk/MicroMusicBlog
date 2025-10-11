@@ -92,6 +92,7 @@ class Post(PostBase):
     comments: List[CommentOut] = []
     files: List[FileOut] = []
     liked_by: List[UserOut] = []
+    likes: int
 
     class Config:
         orm_mode = True

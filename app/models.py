@@ -39,6 +39,7 @@ class Post(TimeStampedMixin, Base):
     owner = relationship("User", back_populates="posts")
     comments = relationship("Comment", back_populates="post", cascade="all, delete")
     liked_by = relationship("User", secondary=post_likes, back_populates="liked_posts")
+    likes = Column(Integer, nullable=False, server_default='0')
     files = relationship("File", back_populates="post", cascade="all, delete")
 
 
