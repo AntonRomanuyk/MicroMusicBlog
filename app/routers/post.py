@@ -4,7 +4,7 @@ from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_204_NO
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, APIRouter, Depends
 
-from app import schemas, models
+from app import schemas, models, oauth2
 from app.database import get_db
 
 from sqlalchemy.orm import Session, joinedload, selectinload

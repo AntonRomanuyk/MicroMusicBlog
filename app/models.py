@@ -67,15 +67,32 @@ class Comment(TimeStampedMixin, Base):
     post = relationship("Post", back_populates="comments")
 
 
-class File(Base):
+class File(TimeStampedMixin, Base):
     __tablename__ = 'files'
     id = Column(Integer, primary_key=True, nullable=False)
     filename = Column(String, nullable=False)
     filepath = Column(String, nullable=False)
     filetype = Column(String, nullable=False)
+    type = Column(String, nullable=False)
 
-    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    __mapper_args__ = {'polymorphic_identity': 'file', 'polymorphic_on': type}
+
+
+class AvatarFile(File):
+    __tablename__ = 'avatars'
+
+    id = Column(Integer, ForeignKey('files.id', ondelete='CASCADE'),primary_key=True, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-
-    post = relationship("Post", back_populates="files")
     user = relationship("User", back_populates="avatar")
+
+    __mapper_args__ = {'polymorphic_identity': 'avatar'}
+
+
+class PostFile(File):
+    __tablename__ = 'post_files'
+
+    id = Column(Integer, ForeignKey('files.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    post_id = Column(Integer, ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+    post = relationship("Post", back_populates="post_file")
+
+    __mapper_args__ = {'polymorphic_identity': 'post_file'}

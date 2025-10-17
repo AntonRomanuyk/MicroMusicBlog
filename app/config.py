@@ -1,4 +1,5 @@
 from pydantic_settings  import BaseSettings
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -10,6 +11,10 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str
     access_token_expire_minutes: int
+
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent
+    UPLOAD_BASE_DIR: Path = BASE_DIR / "uploads"
+    AVATAR_DIR: Path = UPLOAD_BASE_DIR / "avatars"
 
     class Config:
         env_file = ".env"

@@ -24,11 +24,21 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    pass
+    nickname: str
 
 
 class UserLogin(UserBase):
     pass
+
+
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+    email: Optional[str] = None
+
+
+class UserPasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class CommentBase(BaseModel):
@@ -53,11 +63,19 @@ class FileOut(FileBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    post_id: int
-    user_id: int
+    type: str
 
     class Config:
         orm_mode = True
+
+
+
+class AvatarFileOut(FileOut):
+    user_id: int
+
+
+class PostFileOut(FileOut):
+    post_id: int
 
 
 class UserOut(BaseModel):
@@ -66,7 +84,7 @@ class UserOut(BaseModel):
     nickname: str
     created_at: datetime
     updated_at: datetime
-    avatar: Optional[FileOut] = None
+    avatar: Optional[AvatarFileOut] = None
 
     class Config:
         orm_mode = True
@@ -89,9 +107,9 @@ class Post(PostBase):
     updated_at: datetime
     owner_id: int
     owner: UserOut
-    comments: List[CommentOut] = []
-    files: List[FileOut] = []
-    liked_by: List[UserOut] = []
+    comments: Optional[List[CommentOut]] = None
+    files: Optional[List[PostFileOut] ]= None
+    liked_by: Optional[List[UserOut]] = None
     likes: int
 
     class Config:
@@ -103,3 +121,12 @@ class PostOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    id: Optional[str] = None
