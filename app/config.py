@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str
     access_token_expire_minutes: int
-
+    refresh_token_expire_days: int
+    
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     UPLOAD_BASE_DIR: Path = BASE_DIR / "uploads"
     AVATAR_DIR: Path = UPLOAD_BASE_DIR / "avatars"

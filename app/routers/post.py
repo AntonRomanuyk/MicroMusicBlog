@@ -16,7 +16,7 @@ router = APIRouter(
 
 
 @router.post("/create", status_code=HTTP_201_CREATED, response_model=schemas.Post)
-def create_post(post: schemas.CreatePost, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
+def create_post(post: schemas.CreatePost, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
     try:
         new_post = models.Post(owner_id = current_user.id, **post.model_dump())
         db.add(new_post)
@@ -29,7 +29,7 @@ def create_post(post: schemas.CreatePost, db: Session = Depends(get_db), current
 
 
 @router.put("/update/id/{id}", status_code=HTTP_200_OK, response_model=schemas.Post)
-def update_post(id: int, updated_post: schemas.UpdatePost, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
+def update_post(id: int, updated_post: schemas.UpdatePost, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
     try:
         post_query = db.query(models.Post).filter(models.Post.id == id)
         post = post_query.first()
@@ -57,7 +57,7 @@ def update_post(id: int, updated_post: schemas.UpdatePost, db: Session = Depends
 
 
 @router.delete("/delete/id/{id}", status_code=HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
+def delete_post(id: int, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
     try:
         post_query = db.query(models.Post).filter(models.Post.id == id)
         post = post_query.first()
