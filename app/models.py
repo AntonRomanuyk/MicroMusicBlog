@@ -40,7 +40,7 @@ class Post(TimeStampedMixin, Base):
     comments = relationship("Comment", back_populates="post", cascade="all, delete")
     liked_by = relationship("User", secondary=post_likes, back_populates="liked_posts")
     likes = Column(Integer, nullable=False, server_default='0')
-    files = relationship("File", back_populates="post", cascade="all, delete")
+    files = relationship("PostFile", back_populates="post", cascade="all, delete")
 
 
 class User(TimeStampedMixin, Base):
@@ -50,10 +50,13 @@ class User(TimeStampedMixin, Base):
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False)
 
-    posts = relationship("Post", back_populates="owner", cascade="all, delete")
-    comments = relationship("Comment", back_populates="author", cascade="all, delete")
+    is_deleted = Column(Boolean, nullable=False, server_default='False')
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    posts = relationship("Post", back_populates="owner")
+    comments = relationship("Comment", back_populates="author")
     liked_posts = relationship("Post", secondary=post_likes, back_populates="liked_by")
-    avatar = relationship("File", back_populates="user", uselist=False, cascade="all, delete")
+    avatar = relationship("AvatarFile", back_populates="user", uselist=False, cascade="all, delete")
 
 
 class Comment(TimeStampedMixin, Base):
@@ -92,7 +95,7 @@ class PostFile(File):
     __tablename__ = 'post_files'
 
     id = Column(Integer, ForeignKey('files.id', ondelete='CASCADE'), primary_key=True, nullable=False)
-    post_id = Column(Integer, ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
-    post = relationship("Post", back_populates="post_file")
+    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    post = relationship("Post", back_populates="files")
 
     __mapper_args__ = {'polymorphic_identity': 'post_file'}

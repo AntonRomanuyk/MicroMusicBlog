@@ -3,6 +3,8 @@ from pathlib import Path
 import uuid
 from fastapi import APIRouter, HTTPException, Depends, UploadFile
 from typing import Optional, List
+
+from sqlalchemy import func, and_
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_204_NO_CONTENT, HTTP_200_OK, \
     HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_403_FORBIDDEN
@@ -10,7 +12,6 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app import schemas, models, utils, oauth2
 from app.database import get_db
 from app.config import settings
-from app.models import File
 
 router = APIRouter(
     prefix="/users",
@@ -110,7 +111,7 @@ def update_user_password(id: int, password_update: schemas.UserPasswordUpdate, d
 @router.put("/avatar/update/{id}", response_model=schemas.UserOut)
 def update_user_avatar(
         id: int,
-        file: Optional[UploadFile] = File(None),
+        file: Optional[UploadFile] = models.File(None),
         db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)
 ):
     try:
@@ -158,12 +159,11 @@ def update_user_avatar(
             user.avatar.filepath = file_path
             user.avatar.filetype = file.content_type
         else:
-            avatar_file = models.File(
+            avatar_file = models.AvatarFile(
                 filename=file.filename,
                 filepath=file_path,
                 filetype=file.content_type,
-                user_id=id,
-                post_id=None
+                user_id=id
             )
             db.add(avatar_file)
 
@@ -186,13 +186,19 @@ def delete_user(id: int, db: Session = Depends(get_db), current_user: models.Use
         if current_user.id != user.id:
             raise HTTPException(status_code=HTTP_403_FORBIDDEN,
                                 detail="Not authorized to perform requested action")
+
         try:
             if user.avatar and user.avatar.filepath and os.path.exists(user.avatar.filepath):
                 os.remove(user.avatar.filepath)
+                db.delete(user.avatar)
         except Exception:
             pass
 
-        user_query.delete(synchronize_session=False)
+        user.is_deleted = True
+        user.deleted_at = func.now()
+        user.nickname = "Deleted User"
+        user.email = f"deleted_{user.id}@deleted.invalid"
+        user.password = "<deleted>"
         db.commit()
     except HTTPException:
         raise
@@ -210,7 +216,7 @@ def get_user(id: int, db: Session = Depends(get_db)):
     try:
         user = db.query(models.User).options(
             joinedload(models.User.avatar)
-        ).filter(models.User.id == id).first()
+        ).filter(and_(models.User.id == id, models.User.is_deleted == 'False')).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user
@@ -223,7 +229,7 @@ def get_all_users(db: Session = Depends(get_db)):
     try:
         users = db.query(models.User).options(
             joinedload(models.User.avatar)
-        ).all()
+        ).filter(models.User.is_deleted == 'False').all()
         return users
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)

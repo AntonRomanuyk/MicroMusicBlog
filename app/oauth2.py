@@ -72,4 +72,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(models.User).filter(models.User.id == token.id).first()
     if not user:
         raise credentials_exception
+    if user.is_deleted:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account has been deleted",
+            headers={"WWW-Authenticate": "Bearer"})
     return user
