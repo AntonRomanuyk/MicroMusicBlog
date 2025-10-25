@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     UPLOAD_BASE_DIR: Path = BASE_DIR / "uploads"
     AVATAR_DIR: Path = UPLOAD_BASE_DIR / "avatars"
+    POST_FILES_DIR: Path = UPLOAD_BASE_DIR / "post_files"
 
     class Config:
         env_file = ".env"
