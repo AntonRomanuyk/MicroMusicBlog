@@ -7,7 +7,7 @@ from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_204_NO
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, APIRouter, Depends, UploadFile, File, Query
 
-from app import schemas, models, oauth2
+from app import schemas, models, oauth2, cache
 from app.config import settings
 from app.database import get_db
 
@@ -21,7 +21,7 @@ router = APIRouter(
 
 @router.post("/create", status_code=HTTP_201_CREATED, response_model=schemas.Post)
 def create_post(post: schemas.CreatePost, db: Session = Depends(get_db),
-                current_user: models.User = Depends(oauth2.get_current_user),
+                current_user: schemas.UserOut = Depends(oauth2.get_current_user),
                 files: Optional[List[UploadFile]] = File(None)):
     try:
         new_post = models.Post(owner_id = current_user.id, **post.model_dump())
@@ -58,7 +58,7 @@ def create_post(post: schemas.CreatePost, db: Session = Depends(get_db),
 
 
 @router.put("/update/id/{id}", status_code=HTTP_200_OK, response_model=schemas.Post)
-def update_post(id: int, updated_post: schemas.UpdatePost, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
+def update_post(id: int, updated_post: schemas.UpdatePost, db: Session = Depends(get_db), current_user: schemas.UserOut = Depends(oauth2.get_current_user)):
     try:
         post_query = db.query(models.Post).filter(models.Post.id == id)
         post = post_query.first()
@@ -87,7 +87,7 @@ def update_post(id: int, updated_post: schemas.UpdatePost, db: Session = Depends
 
 @router.put("/update/id/{id}/files", status_code=HTTP_200_OK, response_model=schemas.Post)
 def update_post_files(id: int, files: Optional[List[UploadFile]] = File(None),
-                      db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
+                      db: Session = Depends(get_db), current_user: schemas.UserOut = Depends(oauth2.get_current_user)):
     try:
         post_query = db.query(models.Post).filter(models.Post.id == id)
         post = post_query.first()
@@ -142,7 +142,7 @@ def update_post_files(id: int, files: Optional[List[UploadFile]] = File(None),
 
 
 @router.delete("/delete/id/{id}", status_code=HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
+def delete_post(id: int, db: Session = Depends(get_db), current_user: schemas.UserOut = Depends(oauth2.get_current_user)):
     try:
         post_query = db.query(models.Post).filter(models.Post.id == id)
         post = post_query.first()
@@ -177,15 +177,27 @@ def delete_post(id: int, db: Session = Depends(get_db), current_user: models.Use
 @router.get("/id/{id}", response_model=schemas.Post)
 def get_post(id: int, db: Session = Depends(get_db)):
     try:
-        post = db.query(models.Post).options(
-            joinedload(models.Post.owner),
-            selectinload(models.Post.comments).joinedload(models.Comment.author),
-            selectinload(models.Post.files),
-            selectinload(models.Post.liked_by)
-        ).filter(models.Post.id == id).first()
-        if not post:
-            raise HTTPException(status_code=404, detail="Post not found")
-        return post
+        cache_key = f"post:{id}"
+
+        def fetch_data_from_db():
+            post = db.query(models.Post).options(
+                joinedload(models.Post.owner),
+                selectinload(models.Post.comments).joinedload(models.Comment.author),
+                selectinload(models.Post.files),
+                selectinload(models.Post.liked_by)
+            ).filter(models.Post.id == id).first()
+
+            if not post:
+                return None
+            post_schema = schemas.Post.model_validate(post, from_attributes=True)
+            return post_schema.model_dump()
+
+        data = cache.fetch_with_stampede_protection(key=cache_key,
+                                                    fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+        if not data:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Post not found")
+
+        return data
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -193,13 +205,22 @@ def get_post(id: int, db: Session = Depends(get_db)):
 @router.get("/all", response_model=List[schemas.Post])
 def get_all_posts(db: Session = Depends(get_db)):
     try:
-        posts = db.query(models.Post).options(
-            joinedload(models.Post.owner),
-            selectinload(models.Post.comments).joinedload(models.Comment.author),
-            selectinload(models.Post.files),
-            selectinload(models.Post.liked_by)
-        ).all()
-        return posts
+        cache_key = f"posts:all"
+        def fetch_data_from_db():
+            posts = db.query(models.Post).options(
+                joinedload(models.Post.owner),
+                selectinload(models.Post.comments).joinedload(models.Comment.author),
+                selectinload(models.Post.files),
+                selectinload(models.Post.liked_by)
+            ).all()
+            return [schemas.Post.model_validate(u, from_attributes=True).model_dump() for u in posts]
+
+        data = cache.fetch_with_stampede_protection(key=cache_key,
+                                                    fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+        if data is None:
+            return []
+
+        return data
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -207,12 +228,44 @@ def get_all_posts(db: Session = Depends(get_db)):
 @router.get("/user/{id}/all", response_model=List[schemas.Post])
 def get_all_user_posts(id: int, db: Session = Depends(get_db)):
     try:
-        posts = db.query(models.Post).options(
-            joinedload(models.Post.owner),
-            selectinload(models.Post.comments).joinedload(models.Comment.author),
-            selectinload(models.Post.files),
-            selectinload(models.Post.liked_by)
-        ).filter(models.Post.owner_id == id).all()
-        return posts
+        cache_key = f"posts:user:{id}:all"
+        def fetch_data_from_db():
+            posts = db.query(models.Post).options(
+                joinedload(models.Post.owner),
+                selectinload(models.Post.comments).joinedload(models.Comment.author),
+                selectinload(models.Post.files),
+                selectinload(models.Post.liked_by)
+            ).filter(models.Post.owner_id == id).all()
+            return [schemas.Post.model_validate(u, from_attributes=True).model_dump() for u in posts]
+
+        data = cache.fetch_with_stampede_protection(key=cache_key,
+                                                    fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+        if data is None:
+            return []
+
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@router.get("/user/{id}/likes", response_model=List[schemas.Post])
+def get_all_user_likes(id: int, db: Session = Depends(get_db)):
+    try:
+        cache_key = f"posts:user:{id}:likes"
+        def fetch_data_from_db():
+            posts = db.query(models.Post).options(
+                joinedload(models.Post.owner),
+                selectinload(models.Post.comments).joinedload(models.Comment.author),
+                selectinload(models.Post.files),
+                selectinload(models.Post.liked_by)
+            ).filter(models.Post.liked_by.any(models.User.id == id)).all()
+            return [schemas.Post.model_validate(u, from_attributes=True).model_dump() for u in posts]
+
+        data = cache.fetch_with_stampede_protection(key=cache_key,
+                                                    fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+        if data is None:
+            return []
+
+        return data
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)

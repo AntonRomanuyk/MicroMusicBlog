@@ -2,11 +2,20 @@ from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 
-
+from app import events
+from app.redis import init_redis, close_redis
 from app.routers import user, post, auth, like, comment
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_redis()
+    yield
+    close_redis()
+
+
+app = FastAPI(lifespan=lifespan)
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +33,7 @@ app.include_router(comment.router)
 
 #app.mount("/uploads/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
 #app.mount("/uploads/post_files", StaticFiles(directory="uploads/post_files"), name="post_files")
+
 
 
 @app.get("/")

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class PostBase(BaseModel):
@@ -65,9 +65,7 @@ class FileOut(FileBase):
     updated_at: datetime
     type: str
 
-    class Config:
-        orm_mode = True
-
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AvatarFileOut(FileOut):
@@ -86,8 +84,7 @@ class UserOut(BaseModel):
     updated_at: datetime
     avatar: Optional[AvatarFileOut] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommentOut(CommentBase):
@@ -97,8 +94,7 @@ class CommentOut(CommentBase):
     author_id: int
     author: UserOut
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Post(PostBase):
@@ -108,19 +104,17 @@ class Post(PostBase):
     owner_id: int
     owner: UserOut
     comments: Optional[List[CommentOut]] = None
-    files: Optional[List[PostFileOut] ]= None
+    files: Optional[List[PostFileOut]] = None
     liked_by: Optional[List[UserOut]] = None
     likes: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PostOut(BaseModel):
     Post: Post
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenResponse(BaseModel):

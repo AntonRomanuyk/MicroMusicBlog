@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declared_attr, declarative_base
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.database import Base
+from app.cache import CacheInvalidationMixin
 
 post_likes = Table(
     "post_likes",
@@ -28,7 +29,7 @@ class TimeStampedMixin:
         nullable=False)
 
 
-class Post(TimeStampedMixin, Base):
+class Post(TimeStampedMixin, CacheInvalidationMixin, Base):
     __tablename__ = 'posts'
     id = Column(Integer, primary_key=True, nullable=False)
     title = Column(String, nullable=False)
@@ -42,8 +43,16 @@ class Post(TimeStampedMixin, Base):
     likes = Column(Integer, nullable=False, server_default='0')
     files = relationship("PostFile", back_populates="post", cascade="all, delete")
 
+    def get_cache_keys_to_invalidate(self) -> list[str]:
+        return [
+            f"post:{self.id}",
+            "posts:all",
+            f"posts:user:{self.owner_id}:all",
+            f"posts:user:{self.owner_id}:likes",
+        ]
 
-class User(TimeStampedMixin, Base):
+
+class User(TimeStampedMixin, CacheInvalidationMixin, Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True, nullable=False)
     nickname = Column(String, nullable=False)
@@ -58,8 +67,16 @@ class User(TimeStampedMixin, Base):
     liked_posts = relationship("Post", secondary=post_likes, back_populates="liked_by")
     avatar = relationship("AvatarFile", back_populates="user", uselist=False, cascade="all, delete")
 
+    def get_cache_keys_to_invalidate(self) -> list[str]:
+        return [
+            f"user:{self.id}",
+            "users:all",
+            f"posts:user:{self.id}:all",
+            f"posts:user:{self.id}:likes",
+        ]
 
-class Comment(TimeStampedMixin, Base):
+
+class Comment(TimeStampedMixin, CacheInvalidationMixin, Base):
     __tablename__ = 'comments'
     id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String, nullable=False)
@@ -69,8 +86,15 @@ class Comment(TimeStampedMixin, Base):
     author = relationship("User", back_populates="comments")
     post = relationship("Post", back_populates="comments")
 
+    def get_cache_keys_to_invalidate(self) -> list[str]:
+        return [
+            f"post:{self.post_id}",
+            f"posts:all",
+            f"comments:post:{self.post_id}",
+        ]
 
-class File(TimeStampedMixin, Base):
+
+class File(TimeStampedMixin, CacheInvalidationMixin, Base):
     __tablename__ = 'files'
     id = Column(Integer, primary_key=True, nullable=False)
     filename = Column(String, nullable=False)
@@ -90,6 +114,12 @@ class AvatarFile(File):
 
     __mapper_args__ = {'polymorphic_identity': 'avatar'}
 
+    def get_cache_keys_to_invalidate(self) -> list[str]:
+        return [
+            f"user:{self.user_id}",  
+            "users:all",             
+        ]
+
 
 class PostFile(File):
     __tablename__ = 'post_files'
@@ -99,3 +129,9 @@ class PostFile(File):
     post = relationship("Post", back_populates="files")
 
     __mapper_args__ = {'polymorphic_identity': 'post_file'}
+
+    def get_cache_keys_to_invalidate(self) -> list[str]:
+        return [
+            f"post:{self.post_id}",
+            "posts:all",
+        ]

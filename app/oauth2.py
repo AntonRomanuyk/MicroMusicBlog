@@ -1,6 +1,9 @@
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
-from app import schemas, database, models
+
+from starlette.status import HTTP_401_UNAUTHORIZED
+
+from app import schemas, database, models, cache
 from fastapi import Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -61,19 +64,39 @@ def verify_refresh_token(token: str, credentials_exception):
     return token_data
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
-    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                          detail=f"Could not validate credentials",
-                                           headers={"WWW-Authenticate": "Bearer"})
-
-
-    token = verify_access_token(token, credentials_exception)
-
-    user = db.query(models.User).filter(models.User.id == token.id).first()
-    if not user:
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)) -> schemas.UserOut:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        token_data = verify_access_token(token, credentials_exception)
+        if token_data.id is None:
+            raise credentials_exception
+        user_id = token_data.id
+    except Exception:
         raise credentials_exception
-    if user.is_deleted:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account has been deleted",
+
+    cache_key = f"user:{user_id}"
+
+    def fetch_user_from_db():
+        user_orm = db.query(models.User).filter(models.User.id == user_id).first()
+
+        if not user_orm:
+            return None
+
+        user_schema = schemas.UserOut.model_validate(user_orm, from_attributes=True)
+        user_dict_to_cache = user_schema.model_dump()
+        return user_dict_to_cache
+
+    user_dict = cache.fetch_with_stampede_protection(cache_key, fetch_user_from_db, expire=settings.cache_TTL)
+
+    if user_dict is None:
+        raise credentials_exception
+
+    if user_dict.get("is_deleted"):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Account has been deleted",
             headers={"WWW-Authenticate": "Bearer"})
-    return user
+
+    return schemas.UserOut.model_validate(user_dict)

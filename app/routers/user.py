@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import uuid
-from fastapi import APIRouter, HTTPException, Depends, UploadFile
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from typing import Optional, List
 
 from sqlalchemy import func, and_
@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_204_NO_CONTENT, HTTP_200_OK, \
     HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_403_FORBIDDEN
 from sqlalchemy.orm import Session, joinedload, selectinload
-from app import schemas, models, utils, oauth2
+from app import schemas, models, utils, oauth2, cache
 from app.database import get_db
 from app.config import settings
 
@@ -39,7 +39,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @router.put("/update/{id}", response_model=schemas.UserOut)
 def update_user(id: int, user_update: schemas.UserUpdate, db: Session = Depends(get_db),
-                current_user: models.User = Depends(oauth2.get_current_user)):
+                current_user: schemas.UserOut = Depends(oauth2.get_current_user)):
     try:
         user_query = db.query(models.User).filter(models.User.id == id)
         user = user_query.first()
@@ -79,7 +79,7 @@ def update_user(id: int, user_update: schemas.UserUpdate, db: Session = Depends(
 
 @router.put("/password/update/{id}", response_model=schemas.UserOut)
 def update_user_password(id: int, password_update: schemas.UserPasswordUpdate, db: Session = Depends(get_db),
-                         current_user: models.User = Depends(oauth2.get_current_user)):
+                         current_user: schemas.UserOut = Depends(oauth2.get_current_user)):
     try:
         user = db.query(models.User).filter(models.User.id == id).first()
         if not user:
@@ -111,8 +111,8 @@ def update_user_password(id: int, password_update: schemas.UserPasswordUpdate, d
 @router.put("/avatar/update/{id}", response_model=schemas.UserOut)
 def update_user_avatar(
         id: int,
-        file: Optional[UploadFile] = models.File(None),
-        db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)
+        file: Optional[UploadFile] = File(None),
+        db: Session = Depends(get_db), current_user: schemas.UserOut = Depends(oauth2.get_current_user)
 ):
     try:
         user = db.query(models.User).filter(models.User.id == id).first()
@@ -177,7 +177,7 @@ def update_user_avatar(
 
 
 @router.delete("/delete/id/{id}", status_code=HTTP_204_NO_CONTENT)
-def delete_user(id: int, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
+def delete_user(id: int, db: Session = Depends(get_db), current_user: schemas.UserOut = Depends(oauth2.get_current_user)):
     try:
         user_query = db.query(models.User).filter(models.User.id == id)
         user = user_query.first()
@@ -214,12 +214,23 @@ def delete_user(id: int, db: Session = Depends(get_db), current_user: models.Use
 @router.get("/id/{id}", response_model=schemas.UserOut)
 def get_user(id: int, db: Session = Depends(get_db)):
     try:
-        user = db.query(models.User).options(
-            joinedload(models.User.avatar)
-        ).filter(and_(models.User.id == id, models.User.is_deleted == 'False')).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
+        cache_key = f"user:{id}"
+
+        def fetch_data_from_db():
+            user = db.query(models.User).options(
+                joinedload(models.User.avatar)
+            ).filter(and_(models.User.id == id, models.User.is_deleted == 'False')).first()
+
+            if not user:
+                return None
+            user_schema = schemas.UserOut.model_validate(user, from_attributes=True)
+            return user_schema.model_dump()
+
+        data = cache.fetch_with_stampede_protection(key=cache_key,
+                                                    fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+        if not data:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
+        return data
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -227,9 +238,17 @@ def get_user(id: int, db: Session = Depends(get_db)):
 @router.get("/all", response_model=List[schemas.UserOut])
 def get_all_users(db: Session = Depends(get_db)):
     try:
-        users = db.query(models.User).options(
-            joinedload(models.User.avatar)
-        ).filter(models.User.is_deleted == 'False').all()
-        return users
+        cache_key = f"user:all"
+        def fetch_data_from_db():
+            users = db.query(models.User).options(
+                joinedload(models.User.avatar)
+            ).filter(models.User.is_deleted == 'False').all()
+            return [schemas.UserOut.model_validate(u, from_attributes=True).model_dump() for u in users]
+
+        data = cache.fetch_with_stampede_protection(key=cache_key,
+                                                    fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+        if not data:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Users not found")
+        return data
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)

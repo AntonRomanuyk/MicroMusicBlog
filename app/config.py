@@ -12,7 +12,11 @@ class Settings(BaseSettings):
     algorithm: str
     access_token_expire_minutes: int
     refresh_token_expire_days: int
-    
+
+    redis_url: str = "redis://redis:6379/0"
+    redis_max_connections: int = 30
+    cache_TTL: int = 5 * 60
+
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     UPLOAD_BASE_DIR: Path = BASE_DIR / "uploads"
     AVATAR_DIR: Path = UPLOAD_BASE_DIR / "avatars"
