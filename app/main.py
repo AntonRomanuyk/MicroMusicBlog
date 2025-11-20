@@ -10,9 +10,9 @@ from app.routers import user, post, auth, like, comment
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_redis()
+    await init_redis()
     yield
-    close_redis()
+    await close_redis()
 
 
 app = FastAPI(lifespan=lifespan)

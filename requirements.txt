@@ -1,4 +1,5 @@
 alembic==1.17.2
+aiofiles==25.1.0
 fastapi==0.121.2
 uvicorn==0.38.0
 sqlalchemy==2.0.44

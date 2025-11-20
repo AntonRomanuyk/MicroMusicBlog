@@ -1,18 +1,18 @@
-import redis
+import redis.asyncio as Redis
 
 from app.config import settings
 
-redis_client: redis.Redis | None = None
+redis_client: Redis | None = None
 
 
-def init_redis():
+async def init_redis():
     global redis_client
-    redis_client = redis.from_url(settings.redis_url,
+    redis_client = Redis.from_url(settings.redis_url,
                                   encoding="utf-8",
                                   decode_responses=True,
                                   max_connections=settings.redis_max_connections)
 
 
-def close_redis():
+async def close_redis():
     if redis_client:
-        redis_client.close()
+        await redis_client.aclose()

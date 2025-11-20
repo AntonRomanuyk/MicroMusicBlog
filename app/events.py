@@ -1,13 +1,14 @@
+import asyncio
 import logging
 from sqlalchemy import event
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from app import cache
 
 
-@event.listens_for(Session, 'before_commit')
-def handle_before_commit(session: Session):
+@event.listens_for(AsyncSession, 'after_commit')
+def handle_after_commit(session):
 
     keys_to_invalidate = set()
 
@@ -15,15 +16,16 @@ def handle_before_commit(session: Session):
 
     for obj in all_touched_objects:
         if isinstance(obj, cache.CacheInvalidationMixin):
-            keys = obj.get_cache_keys_to_invalidate()
-            for key in keys:
-                keys_to_invalidate.add(key)
+            keys_to_invalidate.update(obj.get_cache_keys_to_invalidate())
 
     if keys_to_invalidate:
-        logging.info(f"CACHE INVALIDATION on commit: {keys_to_invalidate}")
+        logging.info("CACHE INVALIDATION on commit %s:", keys_to_invalidate)
 
-        for key in keys_to_invalidate:
-            try:
-                cache.cache_delete(key)
-            except Exception as e:
-                logging.error(f"FAILED TO DELETE CACHE KEY {key}: {e}")
+        async def delete_keys():
+            for key in keys_to_invalidate:
+                try:
+                    await cache.cache_delete(key)
+                except Exception as e:
+                    logging.error("FAILED TO DELETE CACHE KEY %s: %s", key, e)
+
+        asyncio.create_task(delete_keys())
