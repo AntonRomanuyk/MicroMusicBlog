@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app import events
-from app.redis import init_redis, close_redis
+from app.redis_client import init_redis, close_redis
 from app.routers import user, post, auth, like, comment
 
 @asynccontextmanager

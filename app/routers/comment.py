@@ -112,6 +112,10 @@ async def get_comments_for_post(id: int, db: AsyncSession = Depends(get_db)):
         cache_key = f"comments:post:{id}"
 
         async def fetch_data_from_db():
+            post_check = await db.execute(select(models.Post.id).filter(models.Post.id == id))
+            if not post_check.scalar():
+                return None
+
             result = await db.execute(
                 select(models.Comment)
                 .options(joinedload(models.Comment.author))
@@ -125,6 +129,11 @@ async def get_comments_for_post(id: int, db: AsyncSession = Depends(get_db)):
         data = await cache.fetch_with_stampede_protection(key=cache_key,
             fetch_func=fetch_data_from_db,
             expire=settings.cache_TTL)
+        if data is None:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=f"Post with id: {id} not found")
+
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)

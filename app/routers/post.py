@@ -207,6 +207,8 @@ async def get_post(id: int, db: AsyncSession = Depends(get_db)):
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Post not found")
 
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -241,6 +243,10 @@ async def get_all_user_posts(id: int, db: AsyncSession = Depends(get_db)):
     try:
         cache_key = f"posts:user:{id}:all"
         async def fetch_data_from_db():
+            user_check = await db.execute(select(models.User.id).filter(models.User.id == id))
+            if not user_check.scalar():
+                return None
+
             query = select(models.Post).options(
                 joinedload(models.Post.owner),
                 selectinload(models.Post.comments).joinedload(models.Comment.author),
@@ -255,9 +261,11 @@ async def get_all_user_posts(id: int, db: AsyncSession = Depends(get_db)):
         data = await cache.fetch_with_stampede_protection(key=cache_key,
                                                     fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
         if data is None:
-            return []
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=f"User with id: {id} not found")
 
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -267,6 +275,10 @@ async def get_all_user_likes(id: int, db: AsyncSession = Depends(get_db)):
     try:
         cache_key = f"posts:user:{id}:likes"
         async def fetch_data_from_db():
+            user_check = await db.execute(select(models.User.id).filter(models.User.id == id))
+            if not user_check.scalar():
+                return None
+
             query = select(models.Post).options(
                 joinedload(models.Post.owner),
                 selectinload(models.Post.comments).joinedload(models.Comment.author),
@@ -281,8 +293,10 @@ async def get_all_user_likes(id: int, db: AsyncSession = Depends(get_db)):
         data = await cache.fetch_with_stampede_protection(key=cache_key,
                                                     fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
         if data is None:
-            return []
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=f"User with id: {id} not found")
 
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)

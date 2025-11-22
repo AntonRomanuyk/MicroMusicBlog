@@ -242,6 +242,8 @@ async def get_user(id: int, db: AsyncSession = Depends(get_db)):
         if not data:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -264,5 +266,7 @@ async def get_all_users(db: AsyncSession = Depends(get_db)):
         if not data:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Users not found")
         return data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)

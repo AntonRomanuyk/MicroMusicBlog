@@ -2,7 +2,7 @@ import asyncio
 import json
 from typing import Any, Awaitable, Callable
 from app.config import settings
-from app.redis import redis_client
+from app.redis_client import redis_client
 
 
 
