@@ -32,6 +32,12 @@ ignore = [
   "E501",
 ]
 
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+
 [tool.ruff.lint.per-file-ignores]
 "alembic/env.py" = ["E501", "N", "B008"]
 "alembic/versions/*.py" = ["E501", "N", "B008"]

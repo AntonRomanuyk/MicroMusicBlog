@@ -300,3 +300,19 @@ async def get_all_user_likes(id: int, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@router.get("/topics", response_model=List[str])
+async def get_unique_topics(db: AsyncSession = Depends(get_db)):
+    cache_key = "topics:unique"
+
+    async def fetch_data_from_db():
+        query = select(models.Post.topic).distinct().where(models.Post.topic.is_not(None))
+        result = await db.execute(query)
+        return result.scalars().all()
+
+    topics = await cache.fetch_with_stampede_protection(key=cache_key, fetch_func=fetch_data_from_db, expire=settings.cache_TTL)
+    if topics is None:
+        return []
+
+    return topics

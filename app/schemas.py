@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 class PostBase(BaseModel):
     title: str
     content: str
+    topic: Optional[str] = None
     published: bool
 
 

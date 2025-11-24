@@ -34,6 +34,7 @@ class Post(TimeStampedMixin, CacheInvalidationMixin, Base):
     id = Column(Integer, primary_key=True, nullable=False)
     title = Column(String, nullable=False)
     content = Column(String, nullable=False)
+    topic = Column(String, nullable=True, index=True)
     published = Column(Boolean, nullable=False, server_default='True')
 
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -49,6 +50,7 @@ class Post(TimeStampedMixin, CacheInvalidationMixin, Base):
             "posts:all",
             f"posts:user:{self.owner_id}:all",
             f"posts:user:{self.owner_id}:likes",
+            "topics:unique"
         ]
 
 
@@ -59,6 +61,7 @@ class User(TimeStampedMixin, CacheInvalidationMixin, Base):
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False)
 
+    last_seen = Column(DateTime(timezone=True), nullable=True)
     is_deleted = Column(Boolean, nullable=False, server_default='False')
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
