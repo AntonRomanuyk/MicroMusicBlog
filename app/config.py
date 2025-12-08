@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
 from pathlib import Path
+
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
     redis_max_connections: int = 30
-    cache_TTL: int = 5 * 60
+    cache_ttl: int = 5 * 60
 
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     UPLOAD_BASE_DIR: Path = BASE_DIR / "uploads"

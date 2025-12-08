@@ -1,12 +1,18 @@
-from typing import Optional
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app import events
-from app.redis_client import init_redis, close_redis
-from app.routers import user, post, auth, like, comment, status
+from app.redis_client import close_redis
+from app.redis_client import init_redis
+from app.routers import auth
+from app.routers import comment
+from app.routers import like
+from app.routers import post
+from app.routers import status
+from app.routers import user
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,9 +38,8 @@ app.include_router(like.router)
 app.include_router(comment.router)
 app.include_router(status.router)
 
-#app.mount("/uploads/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
-#app.mount("/uploads/post_files", StaticFiles(directory="uploads/post_files"), name="post_files")
-
+# app.mount("/uploads/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
+# app.mount("/uploads/post_files", StaticFiles(directory="uploads/post_files"), name="post_files")
 
 
 @app.get("/")

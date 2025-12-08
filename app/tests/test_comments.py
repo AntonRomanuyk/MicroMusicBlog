@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import models, schemas
+from app import models
 from app.tests.conftest import create_test_user
 
 
@@ -13,8 +13,6 @@ async def test_add_comment_to_post(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test adding a comment to a post."""
-    # Create a post
     post = models.Post(
         title="Post for Comments",
         content="Content",
@@ -39,10 +37,7 @@ async def test_add_comment_to_post(
     assert "id" in data
     assert "created_at" in data
 
-    # Verify comment exists in DB
-    result = await db_session.execute(
-        select(models.Comment).filter(models.Comment.id == data["id"])
-    )
+    result = await db_session.execute(select(models.Comment).filter(models.Comment.id == data["id"]))
     comment = result.scalar_one_or_none()
     assert comment is not None
     assert comment.content == comment_data["content"]
@@ -54,7 +49,6 @@ async def test_add_comment_to_post(
 async def test_add_comment_to_nonexistent_post(
     authorized_client: AsyncClient,
 ) -> None:
-    """Test adding a comment to a non-existent post."""
     comment_data = {"content": "This comment won't work"}
 
     response = await authorized_client.post("/posts/99999/comment", json=comment_data)
@@ -69,8 +63,6 @@ async def test_delete_comment_success(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test deleting a comment - verify permissions."""
-    # Create a post
     post = models.Post(
         title="Post with Comment",
         content="Content",
@@ -81,7 +73,6 @@ async def test_delete_comment_success(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # Create a comment
     comment = models.Comment(
         content="Comment to delete",
         post_id=post.id,
@@ -95,10 +86,7 @@ async def test_delete_comment_success(
 
     assert response.status_code == 204
 
-    # Verify comment is deleted from DB
-    result = await db_session.execute(
-        select(models.Comment).filter(models.Comment.id == comment.id)
-    )
+    result = await db_session.execute(select(models.Comment).filter(models.Comment.id == comment.id))
     deleted_comment = result.scalar_one_or_none()
     assert deleted_comment is None
 
@@ -109,8 +97,6 @@ async def test_delete_comment_unauthorized(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test that non-author cannot delete a comment."""
-    # Create another user
     other_user = await create_test_user(
         db_session,
         email="other@example.com",
@@ -118,7 +104,6 @@ async def test_delete_comment_unauthorized(
         nickname="otheruser",
     )
 
-    # Create a post
     post = models.Post(
         title="Post",
         content="Content",
@@ -129,7 +114,6 @@ async def test_delete_comment_unauthorized(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # Create a comment by other user
     comment = models.Comment(
         content="Other's comment",
         post_id=post.id,
@@ -139,16 +123,12 @@ async def test_delete_comment_unauthorized(
     await db_session.commit()
     await db_session.refresh(comment)
 
-    # Try to delete as test_user (not the author)
     response = await authorized_client.delete(f"/posts/comment/{comment.id}")
 
     assert response.status_code == 403
     assert "Not authorized" in response.json()["detail"]
 
-    # Verify comment still exists
-    result = await db_session.execute(
-        select(models.Comment).filter(models.Comment.id == comment.id)
-    )
+    result = await db_session.execute(select(models.Comment).filter(models.Comment.id == comment.id))
     existing_comment = result.scalar_one_or_none()
     assert existing_comment is not None
 
@@ -157,7 +137,6 @@ async def test_delete_comment_unauthorized(
 async def test_delete_nonexistent_comment(
     authorized_client: AsyncClient,
 ) -> None:
-    """Test deleting a non-existent comment."""
     response = await authorized_client.delete("/posts/comment/99999")
 
     assert response.status_code == 404
@@ -170,8 +149,6 @@ async def test_update_comment_success(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test updating a comment on a post."""
-    # Create a post
     post = models.Post(
         title="Post",
         content="Content",
@@ -182,7 +159,6 @@ async def test_update_comment_success(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # Create a comment
     comment = models.Comment(
         content="Original comment",
         post_id=post.id,
@@ -204,7 +180,6 @@ async def test_update_comment_success(
     assert data["content"] == update_data["content"]
     assert data["id"] == comment.id
 
-    # Verify DB state
     await db_session.refresh(comment)
     assert comment.content == update_data["content"]
 
@@ -215,8 +190,6 @@ async def test_update_comment_unauthorized(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test that non-author cannot update a comment."""
-    # Create another user
     other_user = await create_test_user(
         db_session,
         email="other2@example.com",
@@ -224,7 +197,6 @@ async def test_update_comment_unauthorized(
         nickname="otheruser2",
     )
 
-    # Create a post
     post = models.Post(
         title="Post",
         content="Content",
@@ -235,7 +207,6 @@ async def test_update_comment_unauthorized(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # Create a comment by other user
     comment = models.Comment(
         content="Other's comment",
         post_id=post.id,
@@ -247,7 +218,6 @@ async def test_update_comment_unauthorized(
 
     update_data = {"content": "Hacked content"}
 
-    # Try to update as test_user (not the author)
     response = await authorized_client.put(
         f"/posts/comment/{comment.id}",
         json=update_data,
@@ -256,7 +226,6 @@ async def test_update_comment_unauthorized(
     assert response.status_code == 403
     assert "Not authorized" in response.json()["detail"]
 
-    # Verify comment unchanged
     await db_session.refresh(comment)
     assert comment.content == "Other's comment"
 
@@ -267,8 +236,6 @@ async def test_get_comments_for_post(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test getting comments for a post."""
-    # Create a post
     post = models.Post(
         title="Post with Comments",
         content="Content",
@@ -279,7 +246,6 @@ async def test_get_comments_for_post(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # Create multiple comments
     comment1 = models.Comment(
         content="First comment",
         post_id=post.id,
@@ -300,7 +266,6 @@ async def test_get_comments_for_post(
     assert isinstance(data, list)
     assert len(data) >= 2
 
-    # Verify comment structure
     for comment in data:
         assert "id" in comment
         assert "content" in comment
@@ -308,7 +273,6 @@ async def test_get_comments_for_post(
         assert "author_id" in comment
         assert "created_at" in comment
 
-    # Verify specific comments exist
     comment_contents = [c["content"] for c in data]
     assert "First comment" in comment_contents
     assert "Second comment" in comment_contents
@@ -318,7 +282,6 @@ async def test_get_comments_for_post(
 async def test_get_comments_for_nonexistent_post(
     authorized_client: AsyncClient,
 ) -> None:
-    """Test getting comments for a non-existent post."""
     response = await authorized_client.get("/posts/99999/comments")
 
     assert response.status_code == 404
@@ -331,8 +294,6 @@ async def test_get_comments_empty_post(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test getting comments for a post with no comments."""
-    # Create a post without comments
     post = models.Post(
         title="Empty Post",
         content="Content",
@@ -349,4 +310,3 @@ async def test_get_comments_empty_post(
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 0
-

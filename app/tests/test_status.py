@@ -1,16 +1,14 @@
-"""
-WebSocket Status Feature Tests (httpx_ws)
-"""
-from datetime import datetime, timezone
 import asyncio
-from typing import Any
 from contextlib import asynccontextmanager
+from datetime import datetime
+from datetime import timezone
+from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
-from unittest.mock import AsyncMock
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models
@@ -80,7 +78,6 @@ async def test_websocket_disconnection_redis_delete_and_last_seen(
     manager.active_connections.clear()
     mock_redis_client.delete.reset_mock()
 
-    # Ensure last_seen is None
     test_user.last_seen = None
     await db_session.commit()
     await db_session.refresh(test_user)
@@ -89,15 +86,12 @@ async def test_websocket_disconnection_redis_delete_and_last_seen(
         async with aconnect_ws(f"/ws/status?token={token}", client=ws_client):
             pass
 
-    # Allow the disconnect handler to run
     await asyncio.sleep(0.3)
 
-    # Redis delete called
     assert mock_redis_client.delete.await_count >= 1
     del_key = mock_redis_client.delete.await_args_list[-1][0][0]
     assert del_key == f"user:{test_user.id}:status"
 
-    # last_seen updated
     await db_session.refresh(test_user)
     assert test_user.last_seen is not None
     assert isinstance(test_user.last_seen, datetime)
@@ -141,17 +135,12 @@ async def test_websocket_multiple_connections_same_user(
             assert user_key is not None
             assert len(manager.active_connections[user_key]) == 1
 
-            # Use a separate WS client for the second connection to avoid reuse issues
             async with _ws_client(app_with_overrides) as ws_client_inner:
-                async with aconnect_ws(
-                    f"/ws/status?token={token}", client=ws_client_inner
-                ):
+                async with aconnect_ws(f"/ws/status?token={token}", client=ws_client_inner):
                     assert len(manager.active_connections[user_key]) == 2
 
-            # After inner disconnect
             assert len(manager.active_connections[user_key]) == 1
 
-        # After outer disconnect
         assert user_key not in manager.active_connections
 
 
@@ -169,18 +158,13 @@ async def test_websocket_last_seen_updates_only_when_no_connections(
     await db_session.commit()
     await db_session.refresh(test_user)
 
-    user_key = test_user.id
-    # First connection
     async with _ws_client(app_with_overrides) as ws_client:
         async with aconnect_ws(f"/ws/status?token={token}", client=ws_client):
-            # Second connection
             async with aconnect_ws(f"/ws/status?token={token}", client=ws_client):
                 pass
-            # Still connected (first)
             await db_session.refresh(test_user)
             assert test_user.last_seen == initial_last_seen
 
-    # After all disconnected
     await db_session.refresh(test_user)
     await asyncio.sleep(0.3)
     assert test_user.last_seen is not None
@@ -236,4 +220,3 @@ async def test_get_user_status_not_found(
     response = await client.get("/user/99999/status")
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
-

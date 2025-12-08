@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select, insert
+from sqlalchemy import insert
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models
@@ -13,13 +14,11 @@ async def test_like_post_success(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test liking a post and verify the likes counter increments."""
-    # Create another user and their post
     other_user = await create_test_user(
         db_session,
-        #email="other@example.com",
+        # email="other@example.com",
         password="password123",
-        #nickname="otheruser",
+        # nickname="otheruser",
     )
 
     post = models.Post(
@@ -42,11 +41,9 @@ async def test_like_post_success(
     assert data["id"] == post.id
     assert data["likes"] == initial_likes + 1
 
-    # Verify DB state - likes counter incremented
     await db_session.refresh(post)
     assert post.likes == initial_likes + 1
 
-    # Verify like relationship exists
     result = await db_session.execute(
         select(models.post_likes).where(
             models.post_likes.c.post_id == post.id,
@@ -63,13 +60,11 @@ async def test_like_post_twice_should_fail(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test that liking the same post twice should fail."""
-    # Create another user and their post
     other_user = await create_test_user(
         db_session,
-        #email="other2@example.com",
+        # email="other2@example.com",
         password="password123",
-        #nickname="otheruser2",
+        # nickname="otheruser2",
     )
 
     post = models.Post(
@@ -83,16 +78,13 @@ async def test_like_post_twice_should_fail(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # First like - should succeed
     response1 = await authorized_client.post(f"/posts/{post.id}/like")
     assert response1.status_code == 200
 
-    # Second like - should fail
     response2 = await authorized_client.post(f"/posts/{post.id}/like")
     assert response2.status_code == 403
     assert "already liked" in response2.json()["detail"].lower()
 
-    # Verify likes counter only incremented once
     await db_session.refresh(post)
     assert post.likes == 1
 
@@ -103,13 +95,11 @@ async def test_unlike_post_success(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test unliking a post and verify the likes counter decrements."""
-    # Create another user and their post
     other_user = await create_test_user(
         db_session,
-        #email="other3@example.com",
+        # email="other3@example.com",
         password="password123",
-        #nickname="otheruser3",
+        # nickname="otheruser3",
     )
 
     post = models.Post(
@@ -123,10 +113,7 @@ async def test_unlike_post_success(
     await db_session.commit()
     await db_session.refresh(post)
 
-    # Create existing like relationship
-    await db_session.execute(
-        insert(models.post_likes).values(user_id=test_user.id, post_id=post.id)
-    )
+    await db_session.execute(insert(models.post_likes).values(user_id=test_user.id, post_id=post.id))
     await db_session.commit()
 
     initial_likes = post.likes
@@ -139,11 +126,9 @@ async def test_unlike_post_success(
     assert data["id"] == post.id
     assert data["likes"] == initial_likes - 1
 
-    # Verify DB state - likes counter decremented
     await db_session.refresh(post)
     assert post.likes == initial_likes - 1
 
-    # Verify like relationship removed
     result = await db_session.execute(
         select(models.post_likes).where(
             models.post_likes.c.post_id == post.id,
@@ -160,13 +145,11 @@ async def test_unlike_post_not_liked_should_fail(
     test_user: models.User,
     db_session: AsyncSession,
 ) -> None:
-    """Test that unliking a post that wasn't liked should fail."""
-    # Create another user and their post
     other_user = await create_test_user(
         db_session,
-        #email="other4@example.com",
+        # email="other4@example.com",
         password="password123",
-        #nickname="otheruser4",
+        # nickname="otheruser4",
     )
 
     post = models.Post(
@@ -185,7 +168,6 @@ async def test_unlike_post_not_liked_should_fail(
     assert response.status_code == 403
     assert "not liked" in response.json()["detail"].lower()
 
-    # Verify likes counter unchanged
     await db_session.refresh(post)
     assert post.likes == 0
 
@@ -194,7 +176,6 @@ async def test_unlike_post_not_liked_should_fail(
 async def test_like_nonexistent_post(
     authorized_client: AsyncClient,
 ) -> None:
-    """Test liking a non-existent post."""
     response = await authorized_client.post("/posts/99999/like")
 
     assert response.status_code == 404
@@ -205,9 +186,7 @@ async def test_like_nonexistent_post(
 async def test_unlike_nonexistent_post(
     authorized_client: AsyncClient,
 ) -> None:
-    """Test unliking a non-existent post."""
     response = await authorized_client.delete("/posts/99999/like")
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
-

@@ -27,9 +27,9 @@ exclude = ["__pycache__",
     "docker",]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "N", "RUFF"]
+select = ["E", "F", "W", "I", "B", "UP", "N"]
 ignore = [
-  "E501",
+  "E501", "B008"
 ]
 
 [tool.pyrefly]
@@ -41,7 +41,8 @@ project-includes = [
 [tool.ruff.lint.per-file-ignores]
 "alembic/env.py" = ["E501", "N", "B008"]
 "alembic/versions/*.py" = ["E501", "N", "B008"]
-"tests/**/*.py" = ["E501"]
+"**/tests/**/*.py" = ["E501", "B017"]
+"**/main.py" = ["F401"]
 
 
 [tool.ruff.lint.isort]

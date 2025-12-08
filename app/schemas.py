@@ -1,13 +1,13 @@
 from datetime import datetime
-from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 
 class PostBase(BaseModel):
     title: str
     content: str
-    topic: Optional[str] = None
+    topic: str | None = None
     published: bool
 
 
@@ -33,8 +33,8 @@ class UserLogin(UserBase):
 
 
 class UserUpdate(BaseModel):
-    nickname: Optional[str] = None
-    email: Optional[str] = None
+    nickname: str | None = None
+    email: str | None = None
 
 
 class UserPasswordUpdate(BaseModel):
@@ -83,7 +83,7 @@ class UserOut(BaseModel):
     nickname: str
     created_at: datetime
     updated_at: datetime
-    avatar: Optional[AvatarFileOut] = None
+    avatar: AvatarFileOut | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -104,9 +104,9 @@ class Post(PostBase):
     updated_at: datetime
     owner_id: int
     owner: UserOut
-    comments: Optional[List[CommentOut]] = None
-    files: Optional[List[PostFileOut]] = None
-    liked_by: Optional[List[UserOut]] = None
+    comments: list[CommentOut] | None = None
+    files: list[PostFileOut] | None = None
+    liked_by: list[UserOut] | None = None
     likes: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -130,7 +130,7 @@ class RefreshTokenRequest(BaseModel):
 
 class RefreshTokenResponse(BaseModel):
     access_token: str
-    token_type: str = 'bearer'
+    token_type: str = "bearer"
 
 
 class Token(BaseModel):
@@ -139,4 +139,4 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    id: Optional[str] = None
+    id: str | None = None

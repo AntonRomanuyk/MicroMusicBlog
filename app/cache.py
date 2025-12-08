@@ -1,13 +1,14 @@
 import asyncio
 import json
-from typing import Any, Awaitable, Callable
-from app.config import settings
-# Use live binding to the module so tests can monkeypatch redis_client once.
+from collections.abc import Awaitable
+from collections.abc import Callable
+from typing import Any
+
 from app import redis_client as redis_module
+from app.config import settings
 
 
-
-async def cache_set(key: str, value: Any, expire: int = settings.cache_TTL):
+async def cache_set(key: str, value: Any, expire: int = settings.cache_ttl):
     client = redis_module.redis_client
     if not client:
         return None
@@ -32,7 +33,7 @@ async def cache_delete(key: str):
 
 
 async def fetch_with_stampede_protection(
-    key: str, fetch_func: Callable[[], Awaitable[Any]], expire: int = settings.cache_TTL
+    key: str, fetch_func: Callable[[], Awaitable[Any]], expire: int = settings.cache_ttl
 ) -> Any:
     client = redis_module.redis_client
 
@@ -65,6 +66,5 @@ async def fetch_with_stampede_protection(
 
 
 class CacheInvalidationMixin:
-
     def get_cache_keys_to_invalidate(self) -> list[str]:
         return []
