@@ -1,4 +1,5 @@
-from pydantic_settings  import BaseSettings
+from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from pathlib import Path
 
 
@@ -22,8 +23,7 @@ class Settings(BaseSettings):
     AVATAR_DIR: Path = UPLOAD_BASE_DIR / "avatars"
     POST_FILES_DIR: Path = UPLOAD_BASE_DIR / "post_files"
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 
 settings = Settings()

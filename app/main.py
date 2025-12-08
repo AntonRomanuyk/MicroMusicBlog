@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from app import events
 from app.redis_client import init_redis, close_redis
-from app.routers import user, post, auth, like, comment
+from app.routers import user, post, auth, like, comment, status
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,6 +30,7 @@ app.include_router(post.router)
 app.include_router(auth.router)
 app.include_router(like.router)
 app.include_router(comment.router)
+app.include_router(status.router)
 
 #app.mount("/uploads/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
 #app.mount("/uploads/post_files", StaticFiles(directory="uploads/post_files"), name="post_files")

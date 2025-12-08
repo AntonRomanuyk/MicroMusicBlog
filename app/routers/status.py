@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import get_db
 from app import models, oauth2
 from app.websockets import manager
-from app.redis_client import redis_client
+from app import redis_client as redis_module
 
 router = APIRouter(tags=["status"])
 
@@ -27,13 +27,14 @@ async def ws_status(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
             detail="Could not validate credentials",
         )
         token_data = await oauth2.verify_access_token(token, credentials_exception)
-        user_id = token_data.id
+        user_id = int(token_data.id)
     except Exception:
         await websocket.close(code=WS_1008_POLICY_VIOLATION)
         return
     await manager.connect(websocket, user_id)
-    if redis_client:
-        await redis_client.set(f"user:{user_id}:status", "1", ex=settings.cache_TTL)
+    client = redis_module.redis_client
+    if client:
+        await client.set(f"user:{user_id}:status", "1", ex=settings.cache_TTL)
 
     try:
         while True:
@@ -45,8 +46,9 @@ async def ws_status(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
 
         if user_id not in manager.active_connections:
 
-            if redis_client:
-                await redis_client.delete(f"user:{user_id}:status")
+            client = redis_module.redis_client
+            if client:
+                await client.delete(f"user:{user_id}:status")
 
             stmt = (
                 update(models.User)
@@ -59,8 +61,9 @@ async def ws_status(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
 @router.get("/user/{id}/status")
 async def get_user_status(id: int, db: AsyncSession = Depends(get_db)):
     is_online = False
-    if redis_client:
-        is_online = await redis_client.exists(f"user:{id}:status") > 0
+    client = redis_module.redis_client
+    if client:
+        is_online = await client.exists(f"user:{id}:status") > 0
 
     if is_online:
         return {"is_online": True, "last_seen": None}

@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_204_NO_CONTENT, HTTP_200_OK, \
     HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_403_FORBIDDEN
 from typing import Optional, List
-from fastapi import HTTPException, APIRouter, Depends, UploadFile, File
+from fastapi import HTTPException, APIRouter, Depends, UploadFile, File, Form
 
 from app import schemas, models, oauth2, cache
 from app.config import settings
@@ -26,11 +26,18 @@ router = APIRouter(
 
 
 @router.post("/create", status_code=HTTP_201_CREATED, response_model=schemas.Post)
-async def create_post(post: schemas.CreatePost, db: AsyncSession = Depends(get_db),
-                current_user: schemas.UserOut = Depends(oauth2.get_current_user),
-                files: Optional[List[UploadFile]] = File(None)):
+async def create_post(title: str = Form(...), content: str = Form(...), topic: Optional[str] = Form(None),
+                      published: bool = Form(True), db: AsyncSession = Depends(get_db),
+                      current_user: schemas.UserOut = Depends(oauth2.get_current_user),
+                      files: Optional[List[UploadFile]] = File(None)):
     try:
-        new_post = models.Post(owner_id = current_user.id, **post.model_dump())
+        new_post = models.Post(
+            owner_id=current_user.id,
+            title=title,
+            content=content,
+            topic=topic,
+            published=published,
+        )
         db.add(new_post)
         await db.commit()
         await db.refresh(new_post)

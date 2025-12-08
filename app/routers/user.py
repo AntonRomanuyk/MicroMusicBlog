@@ -27,16 +27,27 @@ router = APIRouter(
 @router.post("/create", status_code=HTTP_201_CREATED, response_model=schemas.UserOut)
 async def create_user(user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
     try:
+        # Enforce unique email at the application level to return 400 instead of 500
+        existing = await db.execute(
+            select(models.User.id).where(models.User.email == user.email)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="Email already exists")
 
         hashed_password = await utils.hash(user.password)
-        user.password = hashed_password
-
-        new_user = models.User(**user.model_dump())
+        
+        # Create user dict without mutating the original schema
+        user_dict = user.model_dump()
+        user_dict["password"] = hashed_password
+        
+        new_user = models.User(**user_dict)
         db.add(new_user)
         await db.commit()
         await db.refresh(new_user)
         return new_user
 
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
@@ -251,7 +262,7 @@ async def get_user(id: int, db: AsyncSession = Depends(get_db)):
 @router.get("/all", response_model=List[schemas.UserOut])
 async def get_all_users(db: AsyncSession = Depends(get_db)):
     try:
-        cache_key = f"user:all"
+        cache_key = f"users:all"
         async def fetch_data_from_db():
             query = select(models.User).options(
                 joinedload(models.User.avatar)

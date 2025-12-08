@@ -35,7 +35,7 @@ async def refresh(refresh_token_request: schemas.RefreshTokenRequest, db: AsyncS
     
     try:
         token_data = await oauth2.verify_refresh_token(refresh_token_request.refresh_token, credentials_exception)
-        user_result = await db.execute(select(models.User).filter(models.User.id == token_data.id))
+        user_result = await db.execute(select(models.User).filter(models.User.id == int(token_data.id)))
         user = user_result.scalar_one_or_none()
         
         if not user:

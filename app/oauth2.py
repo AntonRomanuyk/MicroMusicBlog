@@ -38,12 +38,12 @@ async def create_refresh_token(data: dict):
 async def verify_access_token(token: str, credentials_exception):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        id: str = payload.get("user_id")
+        user_id: str = payload.get("user_id")
         token_type: str = payload.get("type")
 
-        if id is None or token_type != "access":
+        if user_id is None or token_type != "access":
             raise credentials_exception
-        token_data = schemas.TokenData(id=id)
+        token_data = schemas.TokenData(id=str(user_id))
     except JWTError:
         raise credentials_exception
 
@@ -53,12 +53,12 @@ async def verify_access_token(token: str, credentials_exception):
 async def verify_refresh_token(token: str, credentials_exception):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        id: str = payload.get("user_id")
+        user_id: str = payload.get("user_id")
         token_type: str = payload.get("type")
 
-        if id is None or token_type != "refresh":
+        if user_id is None or token_type != "refresh":
             raise credentials_exception
-        token_data = schemas.TokenData(id=id)
+        token_data = schemas.TokenData(id=str(user_id))
     except JWTError:
         raise credentials_exception
 
@@ -83,7 +83,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
 
     async def fetch_user_from_db():
         result = await db.execute(
-            select(models.User).filter(models.User.id == user_id)
+            select(models.User).filter(models.User.id == int(user_id))
         )
         user_orm = result.scalar_one_or_none()
         if not user_orm:

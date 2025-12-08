@@ -6,33 +6,33 @@ from sqlalchemy.orm import Session
 from app import cache
 
 
-@event.listens_for(Session, 'before_commit')
-def handle_after_commit(session):
-    keys_to_invalidate = set()
+@event.listens_for(Session, "before_commit")
+def handle_before_commit(session: Session):
 
-    all_touched_objects = list(session.new) + list(session.dirty) + list(session.deleted)
+    keys_to_invalidate: set[str] = set()
 
-    for obj in all_touched_objects:
+    touched = list(session.new) + list(session.dirty) + list(session.deleted)
+    for obj in touched:
         if isinstance(obj, cache.CacheInvalidationMixin):
-            keys = obj.get_cache_keys_to_invalidate()
-            for key in keys:
-                keys_to_invalidate.add(key)
+            keys_to_invalidate.update(obj.get_cache_keys_to_invalidate())
 
-    if keys_to_invalidate:
-        logging.info(f"CACHE INVALIDATION scheduled for: {keys_to_invalidate}")
+    if not keys_to_invalidate:
+        return
+
+    logging.info("CACHE INVALIDATION scheduled for: %s", keys_to_invalidate)
 
     try:
-        loop = asyncio.get_event_loop()
-
-        if loop.is_running():
-            loop.create_task(delete_keys(keys_to_invalidate))
+        loop = asyncio.get_running_loop()
     except RuntimeError:
         logging.warning("No running event loop found. Cache not invalidated.")
+        return
+
+    loop.create_task(_delete_keys(keys_to_invalidate))
 
 
-async def delete_keys(keys):
+async def _delete_keys(keys: set[str]):
     for key in keys:
         try:
             await cache.cache_delete(key)
-        except Exception as e:
-            logging.error(f"FAILED TO DELETE CACHE KEY {key}: {e}")
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logging.error("FAILED TO DELETE CACHE KEY %s: %s", key, exc)

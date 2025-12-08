@@ -38,11 +38,11 @@ class Post(TimeStampedMixin, CacheInvalidationMixin, Base):
     published = Column(Boolean, nullable=False, server_default='True')
 
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    owner = relationship("User", back_populates="posts")
-    comments = relationship("Comment", back_populates="post", cascade="all, delete")
-    liked_by = relationship("User", secondary=post_likes, back_populates="liked_posts")
+    owner = relationship("User", back_populates="posts", lazy="selectin")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete", lazy="selectin")
+    liked_by = relationship("User", secondary=post_likes, back_populates="liked_posts", lazy="selectin")
     likes = Column(Integer, nullable=False, server_default='0')
-    files = relationship("PostFile", back_populates="post", cascade="all, delete")
+    files = relationship("PostFile", back_populates="post", cascade="all, delete", lazy="selectin")
 
     def get_cache_keys_to_invalidate(self) -> list[str]:
         return [
@@ -68,7 +68,7 @@ class User(TimeStampedMixin, CacheInvalidationMixin, Base):
     posts = relationship("Post", back_populates="owner")
     comments = relationship("Comment", back_populates="author")
     liked_posts = relationship("Post", secondary=post_likes, back_populates="liked_by")
-    avatar = relationship("AvatarFile", back_populates="user", uselist=False, cascade="all, delete")
+    avatar = relationship("AvatarFile", back_populates="user", uselist=False, cascade="all, delete", lazy="selectin")
 
     def get_cache_keys_to_invalidate(self) -> list[str]:
         return [
@@ -86,7 +86,7 @@ class Comment(TimeStampedMixin, CacheInvalidationMixin, Base):
 
     post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
     author_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    author = relationship("User", back_populates="comments")
+    author = relationship("User", back_populates="comments", lazy="selectin")
     post = relationship("Post", back_populates="comments")
 
     def get_cache_keys_to_invalidate(self) -> list[str]:
