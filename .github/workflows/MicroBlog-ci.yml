@@ -51,7 +51,9 @@ jobs:
           done
 
      - name: Run Ruff (linter)
-       run: ruff check .
+       run: |
+        ruff check .  
+        ruff format --check
 
      - name: Apply Migrations
        env:
