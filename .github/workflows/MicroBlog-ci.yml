@@ -69,6 +69,7 @@ jobs:
 
      - name: Run pytests
        env:
+         PYTHONPATH: .
          DATABASE_HOSTNAME: "${{secrets.DATABASE_HOSTNAME}}"
          DATABASE_PORT: "${{secrets.DATABASE_PORT}}"
          DATABASE_PASSWORD: "${{secrets.DATABASE_PASSWORD}}"
