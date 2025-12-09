@@ -61,6 +61,9 @@ jobs:
            DATABASE_NAME: "${{secrets.DATABASE_NAME}}_test"
            DATABASE_USER: "${{secrets.DATABASE_USER}}"
            SECRET_KEY: "${{secrets.SECRET_KEY}}"
+           ALGORITHM: "${{secrets.ALGORITHM}}"
+           ACCESS_TOKEN_EXPIRE_MINUTES: "${{secrets.ACCESS_TOKEN_EXPIRE_MINUTES}}"
+           REFRESH_TOKEN_EXPIRE_DAYS: "${{secrets.REFRESH_TOKEN_EXPIRE_DAYS}}"
        run: |
            alembic upgrade head
 
