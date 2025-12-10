@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
@@ -36,10 +37,15 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(content={"detail": exc.detail}, status_code=exc.status_code)
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global error: {exc}", exc_info=True)
-    return JSONResponse(content={"datail": "Something went wrong. Please try again later."}, status_code=500)
+    return JSONResponse(content={"detail": "Something went wrong. Please try again later."}, status_code=500)
 
 
 app.include_router(user.router)

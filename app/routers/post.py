@@ -41,40 +41,55 @@ async def create_post(
     current_user: schemas.UserOut = Depends(oauth2.get_current_user),
     files: list[UploadFile] | None = File(None),
 ):
-    new_post = models.Post(
-        owner_id=current_user.id,
-        title=title,
-        content=content,
-        topic=topic,
-        published=published,
-    )
-    db.add(new_post)
-    await db.commit()
-    await db.refresh(new_post)
+    saved_file_paths = []
 
-    if files:
-        os.makedirs(settings.POST_FILES_DIR, exist_ok=True)
+    try:
+        new_post = models.Post(
+            owner_id=current_user.id,
+            title=title,
+            content=content,
+            topic=topic,
+            published=published,
+        )
+        db.add(new_post)
+        await db.flush()
 
-        for file in files:
-            if file.filename:
-                file_extension = Path(file.filename).suffix
-                unique_filename = f"{uuid.uuid4()}{file_extension}"
-                file_path = os.path.join(settings.POST_FILES_DIR, unique_filename)
+        if files:
+            os.makedirs(settings.POST_FILES_DIR, exist_ok=True)
 
-                async with aiofiles.open(file_path, "wb") as buffer:
-                    content = await file.read()
-                    await buffer.write(content)
+            for file in files:
+                if file.filename:
+                    file_extension = Path(file.filename).suffix
+                    unique_filename = f"{uuid.uuid4()}{file_extension}"
+                    file_path = os.path.join(settings.POST_FILES_DIR, unique_filename)
 
-                post_file = models.PostFile(
-                    filename=file.filename,
-                    filepath=file_path,
-                    filetype=file.content_type or "application/octet-stream",
-                    post_id=new_post.id,
-                )
-                db.add(post_file)
+                    async with aiofiles.open(file_path, "wb") as buffer:
+                        content = await file.read()
+                        await buffer.write(content)
+
+                    saved_file_paths.append(file_path)
+
+                    post_file = models.PostFile(
+                        filename=file.filename,
+                        filepath=file_path,
+                        filetype=file.content_type or "application/octet-stream",
+                        post_id=new_post.id,
+                    )
+                    db.add(post_file)
         await db.commit()
-        await db.refresh(new_post)
-    return new_post
+    except Exception as e:
+        for path in saved_file_paths:
+            if os.path.exists(path):
+                os.remove(path)
+        raise e
+
+    query = (
+        select(models.Post)
+        .options(joinedload(models.Post.owner), selectinload(models.Post.files))
+        .where(models.Post.id == new_post.id)
+    )
+    post = (await db.execute(query)).scalar_one()
+    return schemas.Post.model_validate(post, from_attributes=True)
 
 
 @router.put("/update/id/{id}", status_code=HTTP_200_OK, response_model=schemas.Post)

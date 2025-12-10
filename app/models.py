@@ -66,7 +66,7 @@ class User(TimeStampedMixin, CacheInvalidationMixin, Base):
     password = Column(String, nullable=False)
 
     last_seen = Column(DateTime(timezone=True), nullable=True)
-    is_deleted = Column(Boolean, nullable=False, server_default="False")
+    is_deleted = Column(Boolean, nullable=False, server_default="False", index=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     posts = relationship("Post", back_populates="owner")
@@ -116,7 +116,7 @@ class AvatarFile(File):
     __tablename__ = "avatars"
 
     id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
     user = relationship("User", back_populates="avatar")
 
     __mapper_args__ = {"polymorphic_identity": "avatar"}
