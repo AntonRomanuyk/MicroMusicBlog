@@ -71,7 +71,7 @@ jobs:
 
      - name: Security Checks
        run:
-          bandit -r app -ll
+          bandit -r app -x app/tests -ll
 
      - name: Run pytests
        env:
