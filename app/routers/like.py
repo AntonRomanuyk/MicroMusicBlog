@@ -13,6 +13,7 @@ from app import models
 from app import oauth2
 from app import schemas
 from app.database import get_db
+from app.redis_client import redis_client
 
 router = APIRouter(prefix="/posts", tags=["likes"])
 
@@ -38,7 +39,8 @@ async def like_post(
     post.likes += 1
     await db.commit()
     await db.refresh(post)
-
+    if redis_client:
+        await redis_client.delete(f"posts:user:{current_user.id}:likes")
     return post
 
 
@@ -67,5 +69,6 @@ async def unlike_post(
     post.likes -= 1
     await db.commit()
     await db.refresh(post)
-
+    if redis_client:
+        await redis_client.delete(f"posts:user:{current_user.id}:likes")
     return post

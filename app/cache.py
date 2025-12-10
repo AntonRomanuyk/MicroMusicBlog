@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 from collections.abc import Awaitable
 from collections.abc import Callable
 from typing import Any
@@ -57,7 +58,7 @@ async def fetch_with_stampede_protection(
 
     retries = 5
     for _ in range(retries):
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(random.uniform(0.1, 0.3))
         cached_data = await cache_get(key)
         if cached_data is not None:
             return cached_data
