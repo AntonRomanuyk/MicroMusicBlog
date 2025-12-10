@@ -83,13 +83,10 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        token_data = await verify_access_token(token, credentials_exception)
-        if token_data.id is None:
-            raise credentials_exception
-        user_id = token_data.id
-    except Exception as e:
-        raise credentials_exception from e
+    token_data = await verify_access_token(token, credentials_exception)
+    if token_data.id is None:
+        raise credentials_exception
+    user_id = token_data.id
 
     cache_key = f"user:{user_id}"
 

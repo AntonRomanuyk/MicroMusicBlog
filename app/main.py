@@ -1,7 +1,10 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
 from app import events
 from app.redis_client import close_redis
@@ -21,15 +24,23 @@ async def lifespan(app: FastAPI):
     await close_redis()
 
 
+logger = logging.getLogger("uvicorn.error")
 app = FastAPI(lifespan=lifespan)
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global error: {exc}", exc_info=True)
+    return JSONResponse(content={"datail": "Something went wrong. Please try again later."}, status_code=500)
+
 
 app.include_router(user.router)
 app.include_router(post.router)

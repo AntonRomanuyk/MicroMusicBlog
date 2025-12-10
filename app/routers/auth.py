@@ -37,19 +37,13 @@ async def refresh(refresh_token_request: schemas.RefreshTokenRequest, db: AsyncS
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token", headers={"WWW-Authenticate": "Bearer"}
     )
 
-    try:
-        token_data = await oauth2.verify_refresh_token(refresh_token_request.refresh_token, credentials_exception)
-        user_result = await db.execute(select(models.User).filter(models.User.id == int(token_data.id)))
-        user = user_result.scalar_one_or_none()
+    token_data = await oauth2.verify_refresh_token(refresh_token_request.refresh_token, credentials_exception)
+    user_result = await db.execute(select(models.User).filter(models.User.id == int(token_data.id)))
+    user = user_result.scalar_one_or_none()
 
-        if not user:
-            raise credentials_exception
+    if not user:
+        raise credentials_exception
 
-        new_access_token = await oauth2.create_access_token(data={"user_id": user.id})
+    new_access_token = await oauth2.create_access_token(data={"user_id": user.id})
 
-        return {"access_token": new_access_token, "token_type": "bearer"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
+    return {"access_token": new_access_token, "token_type": "bearer"}

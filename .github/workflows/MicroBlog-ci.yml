@@ -69,6 +69,10 @@ jobs:
        run: |
            alembic upgrade head
 
+     - name: Security Checks
+       run:
+          bandit -r app -ll
+
      - name: Run pytests
        env:
          PYTHONPATH: .

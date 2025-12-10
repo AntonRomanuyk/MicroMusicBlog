@@ -25,7 +25,7 @@ post_likes = Table(
 
 class TimeStampedMixin:
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
 
     updated_at: Mapped[datetime.datetime] = mapped_column(
@@ -41,7 +41,7 @@ class Post(TimeStampedMixin, CacheInvalidationMixin, Base):
     topic = Column(String, nullable=True, index=True)
     published = Column(Boolean, nullable=False, server_default="True")
 
-    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     owner = relationship("User", back_populates="posts", lazy="selectin")
     comments = relationship("Comment", back_populates="post", cascade="all, delete", lazy="selectin")
     liked_by = relationship("User", secondary=post_likes, back_populates="liked_posts", lazy="selectin")
@@ -88,8 +88,8 @@ class Comment(TimeStampedMixin, CacheInvalidationMixin, Base):
     id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String, nullable=False)
 
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
-    author_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    author_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     author = relationship("User", back_populates="comments", lazy="selectin")
     post = relationship("Post", back_populates="comments")
 
@@ -116,7 +116,7 @@ class AvatarFile(File):
     __tablename__ = "avatars"
 
     id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     user = relationship("User", back_populates="avatar")
 
     __mapper_args__ = {"polymorphic_identity": "avatar"}
@@ -132,7 +132,7 @@ class PostFile(File):
     __tablename__ = "post_files"
 
     id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True, nullable=False)
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     post = relationship("Post", back_populates="files")
 
     __mapper_args__ = {"polymorphic_identity": "post_file"}

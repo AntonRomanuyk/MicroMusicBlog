@@ -39,7 +39,7 @@ async def fetch_with_stampede_protection(
 
     if client:
         cached_data = await cache_get(key)
-        if cached_data:
+        if cached_data is not None:
             return cached_data
     else:
         return await fetch_func()
@@ -59,7 +59,7 @@ async def fetch_with_stampede_protection(
     for _ in range(retries):
         await asyncio.sleep(0.2)
         cached_data = await cache_get(key)
-        if cached_data:
+        if cached_data is not None:
             return cached_data
 
     return await fetch_func()
