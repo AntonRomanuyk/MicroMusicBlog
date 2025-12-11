@@ -1,12 +1,13 @@
 from datetime import datetime
-from typing import Optional, List
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 
 class PostBase(BaseModel):
     title: str
     content: str
+    topic: str | None = None
     published: bool
 
 
@@ -24,11 +25,21 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    pass
+    nickname: str
 
 
 class UserLogin(UserBase):
     pass
+
+
+class UserUpdate(BaseModel):
+    nickname: str | None = None
+    email: str | None = None
+
+
+class UserPasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class CommentBase(BaseModel):
@@ -53,11 +64,17 @@ class FileOut(FileBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    post_id: int
+    type: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AvatarFileOut(FileOut):
     user_id: int
 
-    class Config:
-        orm_mode = True
+
+class PostFileOut(FileOut):
+    post_id: int
 
 
 class UserOut(BaseModel):
@@ -66,10 +83,9 @@ class UserOut(BaseModel):
     nickname: str
     created_at: datetime
     updated_at: datetime
-    avatar: Optional[FileOut] = None
+    avatar: AvatarFileOut | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommentOut(CommentBase):
@@ -79,8 +95,7 @@ class CommentOut(CommentBase):
     author_id: int
     author: UserOut
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Post(PostBase):
@@ -89,16 +104,39 @@ class Post(PostBase):
     updated_at: datetime
     owner_id: int
     owner: UserOut
-    comments: List[CommentOut] = []
-    files: List[FileOut] = []
-    liked_by: List[UserOut] = []
+    comments: list[CommentOut] | None = None
+    files: list[PostFileOut] | None = None
+    liked_by: list[UserOut] | None = None
+    likes: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PostOut(BaseModel):
     Post: Post
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    id: str | None = None

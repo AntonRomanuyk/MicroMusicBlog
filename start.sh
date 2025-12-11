@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Останавливаем скрипт если есть ошибка
-set -e
+# Stop the script if there is an error
+#set -e
 
-# Запуск FastAPI приложения через uvicorn
+# Run the FastAPI application using uvicorn
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

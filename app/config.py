@@ -1,4 +1,7 @@
-from pydantic_settings  import BaseSettings
+from pathlib import Path
+
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -10,9 +13,18 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str
     access_token_expire_minutes: int
+    refresh_token_expire_days: int
 
-    class Config:
-        env_file = ".env"
+    redis_url: str = "redis://redis:6379/0"
+    redis_max_connections: int = 30
+    cache_ttl: int = 5 * 60
+
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent
+    UPLOAD_BASE_DIR: Path = BASE_DIR / "uploads"
+    AVATAR_DIR: Path = UPLOAD_BASE_DIR / "avatars"
+    POST_FILES_DIR: Path = UPLOAD_BASE_DIR / "post_files"
+
+    model_config = ConfigDict(env_file=".env")
 
 
 settings = Settings()
